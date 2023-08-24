@@ -1,6 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Project
-import org.gradle.api.plugins.quality.CheckstyleExtension
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -22,47 +21,6 @@ fun Project.applyPlatformAndCoreConfiguration(javaRelease: Int = 17) {
     )
 
     ext["internalVersion"] = "$version+${rootProject.ext["gitCommitHash"]}"
-
-    configure<CheckstyleExtension> {
-        configFile = rootProject.file("config/checkstyle/checkstyle.xml")
-        toolVersion = "10.3"
-    }
-
-    tasks.withType<Test>().configureEach {
-        useJUnitPlatform()
-    }
-
-    dependencies {
-        "compileOnly"("com.google.code.findbugs:jsr305:3.0.2")
-        "testCompileOnly"("com.google.code.findbugs:jsr305:3.0.2")
-        "testImplementation"("org.junit.jupiter:junit-jupiter-api:${Versions.JUNIT}")
-        "testImplementation"("org.junit.jupiter:junit-jupiter-params:${Versions.JUNIT}")
-        "testImplementation"("org.mockito:mockito-core:${Versions.MOCKITO}")
-        "testImplementation"("org.mockito:mockito-junit-jupiter:${Versions.MOCKITO}")
-        "testRuntimeOnly"("org.junit.jupiter:junit-jupiter-engine:${Versions.JUNIT}")
-    }
-
-    // Java 8 turns on doclint which we fail
-    tasks.withType<Javadoc>().configureEach {
-        (options as StandardJavadocDocletOptions).apply {
-            addStringOption("Xdoclint:none", "-quiet")
-            tags(
-                "apiNote:a:API Note:",
-                "implSpec:a:Implementation Requirements:",
-                "implNote:a:Implementation Note:"
-            )
-        }
-    }
-
-    the<JavaPluginExtension>().withJavadocJar()
-
-    if (name == "worldguard-core" || name == "worldguard-bukkit") {
-        the<JavaPluginExtension>().withSourcesJar()
-    }
-
-    tasks.named("check").configure {
-        dependsOn("checkstyleMain", "checkstyleTest")
-    }
 
     configure<PublishingExtension> {
         publications {

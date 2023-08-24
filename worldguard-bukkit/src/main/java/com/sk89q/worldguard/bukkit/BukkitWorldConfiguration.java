@@ -256,6 +256,8 @@ public class BukkitWorldConfiguration extends YamlWorldConfiguration {
 
         disableCreatureTurtleEggTrampling = getBoolean("turtle-egg.disable-creature-trampling", false);
         disablePlayerTurtleEggTrampling = getBoolean("turtle-egg.disable-player-trampling", false);
+        disableCreatureSnifferEggTrampling = getBoolean("sniffer-egg.disable-creature-trampling", false);
+        disablePlayerSnifferEggTrampling = getBoolean("sniffer-egg.disable-player-trampling", false);
 
         disallowedLightningBlocks = new HashSet<>(convertLegacyBlocks(getStringList("weather.prevent-lightning-strike-blocks", null)));
         preventLightningFire = getBoolean("weather.disable-lightning-strike-fire", false);
@@ -281,6 +283,7 @@ public class BukkitWorldConfiguration extends YamlWorldConfiguration {
         disableCropGrowth = getBoolean("dynamics.disable-crop-growth", false);
         disableSoilDehydration = getBoolean("dynamics.disable-soil-dehydration", false);
         disableCoralBlockFade = getBoolean("dynamics.disable-coral-block-fade", false);
+        disableCopperBlockFade = getBoolean("dynamics.disable-copper-block-fade", false);
         allowedSnowFallOver = new HashSet<>(convertLegacyBlocks(getStringList("dynamics.snow-fall-blocks", null)));
 
         useRegions = getBoolean("regions.enable", true);
