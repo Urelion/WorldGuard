@@ -139,6 +139,8 @@ public abstract class WorldConfiguration {
     public boolean disablePlayerCropTrampling;
     public boolean disableCreatureTurtleEggTrampling;
     public boolean disablePlayerTurtleEggTrampling;
+    public boolean disableCreatureSnifferEggTrampling;
+    public boolean disablePlayerSnifferEggTrampling;
     public boolean preventLightningFire;
     public Set<String> disallowedLightningBlocks;
     public boolean disableThunder;
@@ -165,6 +167,7 @@ public abstract class WorldConfiguration {
     public boolean disableSnowmanTrails;
     public boolean disableSoilDehydration;
     public boolean disableCoralBlockFade;
+    public boolean disableCopperBlockFade;
     public Set<String> allowedSnowFallOver;
     public boolean regionInvinciblityRemovesMobs;
     public boolean regionCancelEmptyChatEvents;
