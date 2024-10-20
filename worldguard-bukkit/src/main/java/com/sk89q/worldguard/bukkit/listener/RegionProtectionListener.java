@@ -63,6 +63,7 @@ import org.bukkit.entity.Tameable;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerTakeLecternBookEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
@@ -185,7 +186,7 @@ public class RegionProtectionListener extends AbstractListener {
             /* Flint and steel, fire charge, etc. */
             if (Materials.isFire(type)) {
                 Block block = event.getCause().getFirstBlock();
-                boolean fire = block != null && Materials.isFire(type);
+                boolean fire = block != null && Materials.isFire(block.getType());
                 boolean lava = block != null && Materials.isLava(block.getType());
                 List<StateFlag> flags = new ArrayList<>();
                 flags.add(Flags.BLOCK_PLACE);
@@ -231,7 +232,7 @@ public class RegionProtectionListener extends AbstractListener {
                 String what;
 
                 /* TNT */
-                if (event.getCause().find(EntityType.PRIMED_TNT, EntityType.MINECART_TNT) != null) {
+                if (event.getCause().find(EntityType.TNT, EntityType.TNT_MINECART) != null) {
                     canBreak = testBuildType(query, target, associable, Flags.BREAK_BLOCKS, type, null, combine(event, Flags.BLOCK_BREAK, Flags.TNT));
                     what = "use dynamite";
 
@@ -257,13 +258,13 @@ public class RegionProtectionListener extends AbstractListener {
         if (!isRegionSupportEnabled(event.getWorld())) return; // Region support disabled
         if (isWhitelisted(event.getCause(), event.getWorld(), false)) return; // Whitelisted cause
 
-        final Material type = event.getEffectiveMaterial();
         final RegionQuery query = WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery();
         final RegionAssociable associable = createRegionAssociable(event.getCause());
 
         event.filter((Predicate<Location>) target -> {
             boolean canUse;
             String what;
+            final Material type = target.getBlock().getType();
 
             /* Saplings, etc. */
             if (Materials.isConsideredBuildingIfUsed(type)) {
@@ -423,13 +424,15 @@ public class RegionProtectionListener extends AbstractListener {
             canUse = event.getRelevantFlags().isEmpty() || query.queryState(BukkitAdapter.adapt(target), associable, combine(event)) != State.DENY;
             what = "use that";
         /* Paintings, item frames, etc. */
-        } else if (Entities.isConsideredBuildingIfUsed(entity)) {
+        } else if (Entities.isConsideredBuildingIfUsed(entity)
+                // weird case since sneak+interact is chest access and not ride
+                || type == EntityType.CHEST_BOAT && event.getOriginalEvent() instanceof InventoryOpenEvent) {
             if ((type == EntityType.ITEM_FRAME || type == EntityType.GLOW_ITEM_FRAME)
                     && event.getCause().getFirstPlayer() != null
                     && ((ItemFrame) entity).getItem().getType() != Material.AIR) {
                 canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.ITEM_FRAME_ROTATE));
                 what = "change that";
-            } else if (Entities.isMinecart(type)) {
+            } else if (Entities.isMinecart(type) || type == EntityType.CHEST_BOAT) {
                 canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.CHEST_ACCESS));
                 what = "open that";
             } else {
