@@ -171,9 +171,10 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
         return WorldGuardPlugin.inst().getDataFolder().toPath();
     }
 
+    @SuppressWarnings("removal")
     @Override
     public void stackPlayerInventory(LocalPlayer localPlayer) {
-        boolean ignoreMax = localPlayer.hasPermission("worldguard.stack.illegitimate");
+        boolean ignoreMax = false; // localPlayer.hasPermission("worldguard.stack.illegitimate");
 
         Player player = ((BukkitPlayer) localPlayer).getPlayer();
 
@@ -191,7 +192,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
                 continue;
             }
 
-            int max = ignoreMax ? 64 : item.getMaxStackSize();
+            int max = /*ignoreMax ? 64 :*/ item.getMaxStackSize();
 
             if (item.getAmount() < max) {
                 int needed = max - item.getAmount(); // Number of needed items until max
@@ -266,7 +267,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
                 if (radius > 0) {
                     BlockVector3 spawnLoc = BukkitAdapter.asBlockVector(bWorld.getSpawnLocation());
                     return new ProtectedCuboidRegion("__spawn_protection__",
-                            spawnLoc.subtract(radius, 0, radius).withY(world.getMinimumPoint().getY()),
+                            spawnLoc.subtract(radius, 0, radius).withY(world.getMinimumPoint().y()),
                             spawnLoc.add(radius, 0, radius).withY(world.getMaxY()));
                 }
             }

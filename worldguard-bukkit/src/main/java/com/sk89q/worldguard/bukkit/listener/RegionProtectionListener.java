@@ -63,6 +63,8 @@ import org.bukkit.entity.Tameable;
 import org.bukkit.event.Event;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.entity.EntityMountEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerTakeLecternBookEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
@@ -185,7 +187,7 @@ public class RegionProtectionListener extends AbstractListener {
             /* Flint and steel, fire charge, etc. */
             if (Materials.isFire(type)) {
                 Block block = event.getCause().getFirstBlock();
-                boolean fire = block != null && Materials.isFire(type);
+                boolean fire = block != null && Materials.isFire(block.getType());
                 boolean lava = block != null && Materials.isLava(block.getType());
                 List<StateFlag> flags = new ArrayList<>();
                 flags.add(Flags.BLOCK_PLACE);
@@ -231,7 +233,7 @@ public class RegionProtectionListener extends AbstractListener {
                 String what;
 
                 /* TNT */
-                if (event.getCause().find(EntityType.PRIMED_TNT, EntityType.MINECART_TNT) != null) {
+                if (event.getCause().find(EntityType.TNT, EntityType.TNT_MINECART) != null) {
                     canBreak = testBuildType(query, target, associable, Flags.BREAK_BLOCKS, type, null, combine(event, Flags.BLOCK_BREAK, Flags.TNT));
                     what = "use dynamite";
 
@@ -257,13 +259,13 @@ public class RegionProtectionListener extends AbstractListener {
         if (!isRegionSupportEnabled(event.getWorld())) return; // Region support disabled
         if (isWhitelisted(event.getCause(), event.getWorld(), false)) return; // Whitelisted cause
 
-        final Material type = event.getEffectiveMaterial();
         final RegionQuery query = WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery();
         final RegionAssociable associable = createRegionAssociable(event.getCause());
 
         event.filter((Predicate<Location>) target -> {
             boolean canUse;
             String what;
+            final Material type = target.getBlock().getType();
 
             /* Saplings, etc. */
             if (Materials.isConsideredBuildingIfUsed(type)) {
@@ -423,13 +425,15 @@ public class RegionProtectionListener extends AbstractListener {
             canUse = event.getRelevantFlags().isEmpty() || query.queryState(BukkitAdapter.adapt(target), associable, combine(event)) != State.DENY;
             what = "use that";
         /* Paintings, item frames, etc. */
-        } else if (Entities.isConsideredBuildingIfUsed(entity)) {
+        } else if (Entities.isConsideredBuildingIfUsed(entity)
+                // weird case since sneak+interact is chest access and not ride
+                || event.getOriginalEvent() instanceof InventoryOpenEvent) {
             if ((type == EntityType.ITEM_FRAME || type == EntityType.GLOW_ITEM_FRAME)
                     && event.getCause().getFirstPlayer() != null
                     && ((ItemFrame) entity).getItem().getType() != Material.AIR) {
                 canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.ITEM_FRAME_ROTATE));
                 what = "change that";
-            } else if (Entities.isMinecart(type)) {
+            } else if (event.getOriginalEvent() instanceof InventoryOpenEvent) {
                 canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.CHEST_ACCESS));
                 what = "open that";
             } else {
@@ -438,9 +442,10 @@ public class RegionProtectionListener extends AbstractListener {
             }
         /* Ridden on use */
         } else if (Entities.isRiddenOnUse(entity)) {
-            canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.RIDE, Flags.INTERACT));
+            // this is bypassed here as it's handled by the entity mount listener below
+            // bukkit actually gives three events in this case - in order: PlayerInteractAtEntity, VehicleEnter, EntityMount
+            canUse = true;
             what = "ride that";
-
         /* Everything else */
         } else {
             canUse = query.testBuild(BukkitAdapter.adapt(target), associable, combine(event, Flags.INTERACT));
@@ -476,11 +481,12 @@ public class RegionProtectionListener extends AbstractListener {
         }
 
         /* Hostile / ambient mob override */
-        if (Entities.isHostile(event.getEntity()) || Entities.isAmbient(event.getEntity())
-                || Entities.isVehicle(event.getEntity().getType())) {
+        if (Entities.isHostile(event.getEntity()) || Entities.isAmbient(event.getEntity())) {
             canDamage = event.getRelevantFlags().isEmpty() || query.queryState(target, associable, combine(event)) != State.DENY;
             what = "hit that";
-
+        } else if (Entities.isVehicle(event.getEntity().getType())) {
+            canDamage = query.testBuild(target, associable, combine(event, Flags.DESTROY_VEHICLE));
+            what = "change that";
         /* Paintings, item frames, etc. */
         } else if (Entities.isConsideredBuildingIfUsed(event.getEntity())) {
             canDamage = query.testBuild(target, associable, combine(event));
@@ -526,6 +532,27 @@ public class RegionProtectionListener extends AbstractListener {
         if (!canDamage) {
             tellErrorMessage(event, event.getCause(), event.getTarget(), what);
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityMount(EntityMountEvent event) {
+        Entity vehicle = event.getMount();
+        if (!isRegionSupportEnabled(vehicle.getWorld())) return; // Region support disabled
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        Cause cause = Cause.create(player);
+        if (isWhitelisted(cause, vehicle.getWorld(), false)) {
+            return;
+        }
+        RegionQuery query = WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery();
+        Location location = vehicle.getLocation();
+        LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
+        if (!query.testBuild(BukkitAdapter.adapt(location), localPlayer, Flags.RIDE, Flags.INTERACT)) {
+            event.setCancelled(true);
+            DelegateEvent dummy = new UseEntityEvent(event, cause, vehicle);
+            tellErrorMessage(dummy, cause, vehicle.getLocation(), "ride that");
         }
     }
 
