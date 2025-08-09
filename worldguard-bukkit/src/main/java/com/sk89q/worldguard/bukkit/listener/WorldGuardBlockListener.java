@@ -56,6 +56,7 @@ import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.EntityBlockFormEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
+import org.bukkit.event.block.MoistureChangeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -470,7 +471,6 @@ public class WorldGuardBlockListener extends AbstractListener {
     public void onBlockForm(BlockFormEvent event) {
         ConfigurationManager cfg = getConfig();
 
-
         if (cfg.activityHaltToggle) {
             event.setCancelled(true);
             return;
@@ -517,6 +517,18 @@ public class WorldGuardBlockListener extends AbstractListener {
             }
             if (wcfg.useRegions && !StateFlag.test(WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
                     .queryState(BukkitAdapter.adapt(event.getBlock().getLocation()), (RegionAssociable) null, Flags.SNOW_FALL))) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
+        if (Materials.isUnwaxedCopper(event.getBlock().getType())) {
+            if (wcfg.disableCopperBlockFade) {
+                event.setCancelled(true);
+                return;
+            }
+            if (wcfg.useRegions && !StateFlag.test(WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
+                    .queryState(BukkitAdapter.adapt(event.getBlock().getLocation()), (RegionAssociable) null, Flags.COPPER_FADE))) {
                 event.setCancelled(true);
                 return;
             }
@@ -712,6 +724,26 @@ public class WorldGuardBlockListener extends AbstractListener {
         WorldConfiguration wcfg = getWorldConfig(event.getBlock().getWorld());
         if (wcfg.blockOtherExplosions) {
             event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Called when the moisture level of a block changes
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onMoistureChange(MoistureChangeEvent event) {
+        WorldConfiguration wcfg = getWorldConfig(event.getBlock().getWorld());
+
+        if (wcfg.disableSoilMoistureChange) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (wcfg.useRegions) {
+            if (!StateFlag.test(WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
+                    .queryState(BukkitAdapter.adapt(event.getBlock().getLocation()), (RegionAssociable) null, Flags.MOISTURE_CHANGE))) {
+                event.setCancelled(true);
+            }
         }
     }
 

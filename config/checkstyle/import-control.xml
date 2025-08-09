@@ -7,7 +7,6 @@
   <allow pkg="javax"/>
   <allow pkg="org.junit"/>
   <allow pkg="org.hamcrest"/>
-  <allow pkg="org.mockito"/>
   <allow pkg="junit.framework"/>
   <allow pkg="com.sk89q"/>
   <allow pkg="com.google.common"/>
@@ -30,7 +29,7 @@
       <allow pkg="org.bstats.charts"/>
       <allow pkg="io.papermc.lib"/>
       <allow pkg="com.destroystokyo.paper"/>
-      <allow pkg="co.aikar.timings.lib" />
+      <allow pkg="io.papermc.paper"/>
       <allow pkg="org.spigotmc" />
     </subpackage>
 

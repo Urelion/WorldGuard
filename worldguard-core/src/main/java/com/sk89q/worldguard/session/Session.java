@@ -34,10 +34,11 @@ import com.sk89q.worldguard.protection.regions.RegionQuery;
 import com.sk89q.worldguard.session.handler.Handler;
 import com.sk89q.worldguard.util.Locations;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
+import java.util.function.BiConsumer;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -52,6 +53,7 @@ public class Session {
     private Location lastValid;
     private Set<ProtectedRegion> lastRegionSet;
     private final AtomicBoolean needRefresh = new AtomicBoolean(false);
+    private boolean initialized;
 
     /**
      * Create a new session.
@@ -69,7 +71,7 @@ public class Session {
      * @param handler A new handler
      */
     public void register(Handler handler) {
-        handlers.put(handler.getWrappedHandler().getClass(), handler);
+        handlers.put(handler.getClass(), handler);
     }
 
     /**
@@ -91,7 +93,7 @@ public class Session {
     @Nullable
     @SuppressWarnings("unchecked")
     public <T extends Handler> T getHandler(Class<T> type) {
-        return (T) handlers.get(type).getWrappedHandler();
+        return (T) handlers.get(type);
     }
 
     /**
@@ -110,13 +112,36 @@ public class Session {
         disableBypass = cfg.disableDefaultBypass;
         if (cfg.announceBypassStatus && player.hasPermission("worldguard.region.toggle-bypass")) {
             player.printInfo(TextComponent.of(
-                    "You are " + (disableBypass ? "not" : "") + " bypassing region protection. " +
+                    "You are " + (disableBypass ? "not " : "") + "bypassing region protection. " +
                     "You can toggle this with /rg bypass", TextColor.DARK_PURPLE));
         }
 
 
         for (Handler handler : handlers.values()) {
             handler.initialize(player, location, set);
+        }
+    }
+
+    synchronized void ensureInitialized(LocalPlayer player, BiConsumer<Session, LocalPlayer> initializer) {
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+        initializer.accept(this, player);
+    }
+
+    /**
+     * Uninitialize the session.
+     *
+     * @param player The player
+     */
+    public void uninitialize(LocalPlayer player) {
+        RegionQuery query = WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery();
+        Location location = player.getLocation();
+        ApplicableRegionSet set = query.getApplicableRegions(location);
+
+        for (Handler handler : handlers.values()) {
+            handler.uninitialize(player, location, set);
         }
     }
 

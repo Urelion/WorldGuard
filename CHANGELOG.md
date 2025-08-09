@@ -1,9 +1,64 @@
 # Changelog
 
-## 7.0.8 (beta)
+## 7.0.14
+
+* Update to 1.21.5
+* Fix hopper minecarts not being able to take items from containers in protected regions.
+* Fix hopper minecarts not being able to take items from other hopper minecarts in protected regions.
+* Fix non-members being able to leash boats in protected regions.
+* Use new knockback event on Paper servers to better handle mace knockback in pvp and some other knockback situations.
+
+## 7.0.13
+
+* Update to 1.21.4
+* Remove max-stack-size bypass in stack command
+* Fix a falling block metadata leak. (May still be problematic on Spigot, use Paper.)
+* Fix flame enchant being blocked as entity damage on the arrow itself.
+* More Paper-specific performance enhancements for hoppers.
+* Fix block-windcharge-explosions config option not doing anything.
+* Improvements to fishing rod protection.
+* More aggressive vehicle protection (vehicle-destroy now needs to be allowed for various non-destructive damage).
+* Move decorated pot usage from interact to chest-access.
+
+## 7.0.12
+
+* Fix a change in the default behavior of explosion flag handling.
+
+## 7.0.11
+
+* Add support for MC 1.21.
+* Add wind-charge-burst flag which is checked along with `use` (for the interaction) or `pvp` (for the knockback).
+* Add breeze-charge-explosion flag for breeze charges (i.e. from the mob, not player wind charges).
+* Add moisture-change flag and config options.
+* Fix an error if a player logged in to an unloaded world.
+* Fix chest boat usage always being counted as ride.
+* Consider potions thrown by mobs as mob-damage.
+* Workaround spigot no longer sending block change events when a book is placed on a lectern.
+* Improve accuracy of target blocks in blacklist/build-perms events.
+
+## 7.0.10
+
+* Add support for MC 1.20.5 and 1.20.6, drop support for other 1.20 versions
+
+## 7.0.9
+* Add support for MC 1.20, drop support for MC 1.19
+* Made entities spawned via the `/summon` command get treated as plugin-spawned entities
+* Add sniffer egg trample protection options
+
+## 7.0.8
 * Add support for MC 1.19
 * Add skulk-growth flag and config option
-* Fix possible error when using Paper's entity origin API.
+* Add copper-fade flag
+* Add data packs to report output
+* Add protection for allay inventory slot
+* Categorize allay item pickups under item-pickup flag
+* Categorize dragon egg interaction (teleporting) as building
+* Ignore most NPC-based actions for Player events
+* Optimize handling of tamed animals where the owner was offline (Paper only)
+* Optimize additional InventoryHolder accesses (Paper only)
+* Fix an exception that occurred when plugins created portals with non-player entities
+* Fix possible error when using Paper's entity origin API
+* Update bstats and squirrelid libs
 
 ## 7.0.7
 * Add rock-growth flag for budding amethyst and pointed dripstone.

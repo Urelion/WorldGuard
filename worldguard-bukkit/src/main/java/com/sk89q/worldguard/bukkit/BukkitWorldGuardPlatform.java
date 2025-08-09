@@ -34,6 +34,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.util.profile.resolver.PaperPlayerService;
 import com.sk89q.worldguard.bukkit.protection.events.flags.FlagContextCreateEvent;
 import com.sk89q.worldguard.bukkit.session.BukkitSessionManager;
+import com.sk89q.worldguard.bukkit.util.report.DatapackReport;
 import com.sk89q.worldguard.bukkit.util.report.PerformanceReport;
 import com.sk89q.worldguard.bukkit.util.report.PluginReport;
 import com.sk89q.worldguard.bukkit.util.report.SchedulerReport;
@@ -138,7 +139,6 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
         sessionManager = new BukkitSessionManager();
         configuration = new BukkitConfigurationManager(WorldGuardPlugin.inst());
         configuration.load();
-        sessionManager.setUsingTimings(configuration.timedSessionHandlers);
         regionContainer = new BukkitRegionContainer(WorldGuardPlugin.inst());
         regionContainer.initialize();
         debugHandler = new BukkitDebugHandler(WorldGuardPlugin.inst());
@@ -146,6 +146,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
 
     @Override
     public void unload() {
+        sessionManager.shutdown();
         configuration.unload();
         regionContainer.shutdown();
     }
@@ -170,9 +171,10 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
         return WorldGuardPlugin.inst().getDataFolder().toPath();
     }
 
+    @SuppressWarnings("removal")
     @Override
     public void stackPlayerInventory(LocalPlayer localPlayer) {
-        boolean ignoreMax = localPlayer.hasPermission("worldguard.stack.illegitimate");
+        boolean ignoreMax = false; // localPlayer.hasPermission("worldguard.stack.illegitimate");
 
         Player player = ((BukkitPlayer) localPlayer).getPlayer();
 
@@ -190,7 +192,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
                 continue;
             }
 
-            int max = ignoreMax ? 64 : item.getMaxStackSize();
+            int max = /*ignoreMax ? 64 :*/ item.getMaxStackSize();
 
             if (item.getAmount() < max) {
                 int needed = max - item.getAmount(); // Number of needed items until max
@@ -238,6 +240,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
         report.add(new ServicesReport());
         report.add(new WorldReport());
         report.add(new PerformanceReport());
+        if (PaperLib.isPaper()) report.add(new DatapackReport());
     }
 
     @Override
@@ -264,7 +267,7 @@ public class BukkitWorldGuardPlatform implements WorldGuardPlatform {
                 if (radius > 0) {
                     BlockVector3 spawnLoc = BukkitAdapter.asBlockVector(bWorld.getSpawnLocation());
                     return new ProtectedCuboidRegion("__spawn_protection__",
-                            spawnLoc.subtract(radius, 0, radius).withY(world.getMinimumPoint().getY()),
+                            spawnLoc.subtract(radius, 0, radius).withY(world.getMinimumPoint().y()),
                             spawnLoc.add(radius, 0, radius).withY(world.getMaxY()));
                 }
             }

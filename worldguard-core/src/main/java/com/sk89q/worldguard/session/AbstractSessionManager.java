@@ -19,6 +19,7 @@
 
 package com.sk89q.worldguard.session;
 
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -44,10 +45,8 @@ import com.sk89q.worldguard.session.handler.WeatherLockFlag;
 import javax.annotation.Nullable;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
@@ -69,14 +68,11 @@ public abstract class AbstractSessionManager implements SessionManager {
             .expireAfterWrite(2, TimeUnit.SECONDS)
             .build(CacheLoader.from(tuple -> BYPASS_PERMISSION_TEST.test(tuple.getWorld(), tuple.getPlayer())));
 
-    private final LoadingCache<CacheKey, Session> sessions = CacheBuilder.newBuilder()
+    private final Cache<CacheKey, Session> sessions = CacheBuilder.newBuilder()
             .expireAfterAccess(SESSION_LIFETIME, TimeUnit.MINUTES)
-            .build(CacheLoader.from(key ->
-                    createSession(key.playerRef.get())));
+            .build();
 
     private boolean hasCustom = false;
-    // <original handler, wrapped handler>
-    private Map<Handler.Factory<? extends Handler>, Handler.Factory<? extends Handler>> wrappedHandlers = new HashMap<>();
     private List<Handler.Factory<? extends Handler>> handlers = new LinkedList<>();
 
     private static final List<Handler.Factory<? extends Handler>> defaultHandlers = new LinkedList<>();
@@ -110,27 +106,20 @@ public abstract class AbstractSessionManager implements SessionManager {
         return hasCustom;
     }
 
-    protected Handler.Factory<? extends Handler> wrapForRegistration(Handler.Factory<? extends Handler> factory) {
-        return factory;
-    }
-
     @Override
     public boolean registerHandler(Handler.Factory<? extends Handler> factory, @Nullable Handler.Factory<? extends Handler> after) {
         if (factory == null) return false;
         WorldGuard.logger.log(Level.INFO, "Registering session handler "
                 + factory.getClass().getEnclosingClass().getName());
         hasCustom = true;
-        Handler.Factory<? extends Handler> wrappedFactory = wrapForRegistration(factory);
         if (after == null) {
-            handlers.add(wrappedFactory);
+            handlers.add(factory);
         } else {
-            Handler.Factory<? extends Handler> wrappedAfter = wrappedHandlers.get(after);
-            int index = handlers.indexOf(wrappedAfter != null ? wrappedAfter : after);
+            int index = handlers.indexOf(after);
             if (index == -1) return false;
 
             handlers.add(index + 1, factory); // shifts "after" right one, and everything after "after" right one
         }
-        wrappedHandlers.put(factory, wrappedFactory);
         return true;
     }
 
@@ -142,7 +131,6 @@ public abstract class AbstractSessionManager implements SessionManager {
         } else {
             WorldGuard.logger.log(Level.INFO, "Unregistering session handler "
                     + factory.getClass().getEnclosingClass().getName());
-            factory = wrappedHandlers.remove(factory);
         }
         return handlers.remove(factory);
     }
@@ -164,7 +152,7 @@ public abstract class AbstractSessionManager implements SessionManager {
     @Override
     public void resetState(LocalPlayer player) {
         checkNotNull(player, "player");
-        @Nullable Session session = sessions.getIfPresent(new CacheKey(player));
+        @Nullable Session session = getIfPresentInternal(new CacheKey(player));
         if (session != null) {
             session.resetState(player);
         }
@@ -173,22 +161,35 @@ public abstract class AbstractSessionManager implements SessionManager {
     @Override
     @Nullable
     public Session getIfPresent(LocalPlayer player) {
-        return sessions.getIfPresent(new CacheKey(player));
+        return getIfPresentInternal(new CacheKey(player));
+    }
+
+    private Session getIfPresentInternal(CacheKey cacheKey) {
+        @Nullable Session session = sessions.getIfPresent(cacheKey);
+        if (session != null) {
+            session.ensureInitialized(cacheKey.playerRef.get(), this::initializeSession);
+            return session;
+        }
+        return null;
     }
 
     @Override
     public Session get(LocalPlayer player) {
-        return sessions.getUnchecked(new CacheKey(player));
+        Session session = sessions.asMap().computeIfAbsent(new CacheKey(player), (k) -> new Session(this));
+        session.ensureInitialized(player, this::initializeSession);
+        return session;
     }
 
     @Override
     public Session createSession(LocalPlayer player) {
-        Session session = new Session(this);
+        return get(player);
+    }
+
+    private void initializeSession(Session session, LocalPlayer player) {
         for (Handler.Factory<? extends Handler> factory : handlers) {
             session.register(factory.create(session));
         }
         session.initialize(player);
-        return session;
     }
 
     protected static final class CacheKey {
